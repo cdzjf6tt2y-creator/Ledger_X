@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Ledger</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Crect width='36' height='36' rx='10' fill='%231c1b18'/%3E%3Cpath d='M10 26V10h6.2c3.6 0 5.8 1.7 5.8 4.4 0 1.8-1 3.1-2.6 3.7 1.9.5 3.1 1.9 3.1 3.9 0 2.9-2.4 4.6-6.2 4.6H10zm4.2-9.4h2.1c1.5 0 2.3-.6 2.3-1.7s-.8-1.6-2.3-1.6h-2.1v3.3zm0 6.6h2.5c1.7 0 2.6-.6 2.6-1.8s-.9-1.7-2.6-1.7h-2.5v3.5z' fill='%23f4f2ed'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f4f2ed;
+      --surface: #fcfbf8;
+      --surface2: #eceae4;
+      --border: #ddd9d1;
+      --fg: #1c1b18;
+      --muted: #4f4a43;
+      --good: #1d6b45;
+      --bad: #a33d34;
+      --warn: #8a6230;
+      --soft: #eceae4;
+    }
+    [data-theme="dark"] {
+      --bg: #10110f;
+      --surface: #181916;
+      --surface2: #23241f;
+      --border: #34352e;
+      --fg: #f3f1ea;
+      --muted: #c8c4ba;
+      --good: #8dccaa;
+      --bad: #e7a39b;
+      --warn: #e0c08a;
+      --soft: #23241f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      font-size: 17px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.011em;
+    }
+    .app { max-width: 440px; margin: 0 auto; padding: 1.75rem 1.25rem 7rem; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.75rem; }
+    .logo { width: 36px; height: 36px; flex-shrink: 0; }
+    .top-left { display: flex; align-items: flex-start; gap: 0.75rem; }
+    h1 { font-size: 2rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1.1; margin-top: 0.15rem; }
+    .sub { color: var(--muted); font-size: 0.95rem; margin-top: 0.25rem; max-width: 220px; line-height: 1.4; }
+    .kicker { font-size: 0.95rem; font-weight: 500; color: var(--fg); }
+    .actions { display: flex; gap: 0.4rem; }
+    button { font-family: inherit; cursor: pointer; border: none; background: transparent; color: inherit; }
+    .pill { height: 40px; padding: 0 0.95rem; border-radius: 999px; font-size: 0.9rem; font-weight: 500; border: 1px solid var(--border); background: var(--soft); }
+    .pill.solid { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+    .pill:active { transform: scale(0.97); }
+    .hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1.5rem;
+      padding: 1.4rem;
+      margin-bottom: 1.25rem;
+    }
+    .label { font-size: 0.95rem; color: var(--muted); }
+    .net { font-size: 2.75rem; font-weight: 500; letter-spacing: -0.03em; line-height: 1.05; margin: 0.3rem 0 0.35rem; font-variant-numeric: tabular-nums; }
+    .net.neg { color: var(--bad); }
+    .meta-line { font-size: 0.95rem; color: var(--muted); line-height: 1.4; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 1rem; }
+    .mini { background: var(--surface2); border-radius: 1rem; padding: 0.8rem 0.9rem; }
+    .mini .l { font-size: 0.85rem; color: var(--muted); }
+    .mini .v { font-size: 1.15rem; font-weight: 500; margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+    .good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+    .section { margin-bottom: 1.5rem; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; }
+    .section h2 { font-size: 1.25rem; font-weight: 500; letter-spacing: -0.02em; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25rem; padding: 1rem; }
+    .item { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px solid var(--border); }
+    .item:last-child { border-bottom: none; }
+    .name { font-weight: 500; font-size: 1rem; }
+    .meta { font-size: 0.9rem; color: var(--muted); margin-top: 0.15rem; line-height: 1.35; }
+    .empty { text-align: center; color: var(--muted); padding: 1.25rem 0.5rem; font-size: 0.95rem; }
+    .tabs { display: flex; background: var(--surface2); border-radius: 999px; padding: 0.2rem; margin-bottom: 1rem; }
+    .tab { flex: 1; text-align: center; padding: 0.55rem; border-radius: 999px; font-size: 0.9rem; font-weight: 500; color: var(--muted); }
+    .tab.on { background: var(--fg); color: var(--bg); }
+    .bottom { position: fixed; left: 0; right: 0; bottom: 0; background: color-mix(in oklab, var(--bg) 90%, transparent); backdrop-filter: blur(16px); border-top: 1px solid var(--border); padding: 0.35rem 0.6rem calc(0.45rem + env(safe-area-inset-bottom)); }
+    .bottom-inner { max-width: 440px; margin: 0 auto; display: flex; }
+    .bottom button { flex: 1; min-height: 48px; font-size: 0.8rem; font-weight: 500; color: var(--muted); border-radius: 0.6rem; }
+    .bottom button.on { color: var(--fg); }
+    input, select { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--fg); padding: 0.65rem 0.8rem; border-radius: 0.7rem; font-size: 16px; font-family: inherit; margin-top: 0.2rem; }
+    label { display: block; font-size: 0.9rem; color: var(--muted); margin-top: 0.7rem; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 50; padding: 0.4rem; }
+    .modal-box { background: var(--surface); border: 1px solid var(--border); border-radius: 1.25rem 1.25rem 0 0; padding: 1.15rem; width: 100%; max-width: 440px; max-height: 86vh; overflow-y: auto; }
+    .progress { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 0.4rem; }
+    .progress > div { height: 100%; background: var(--fg); }
+    .chart-box { position: relative; height: 180px; margin-top: 0.4rem; }
+    .link { color: var(--muted); font-size: 0.9rem; text-decoration: underline; background: none; }
+    .danger { color: var(--bad); }
+    .notice { display: none; margin-bottom: 1rem; padding: 0.7rem 0.9rem; background: var(--surface2); border-radius: 0.6rem; font-size: 0.95rem; color: var(--warn); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="top-left">
+        <svg class="logo" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+          <rect width="36" height="36" rx="10" fill="var(--fg)"/>
+          <path d="M10 26V10h6.2c3.6 0 5.8 1.7 5.8 4.4 0 1.8-1 3.1-2.6 3.7 1.9.5 3.1 1.9 3.1 3.9 0 2.9-2.4 4.6-6.2 4.6H10zm4.2-9.4h2.1c1.5 0 2.3-.6 2.3-1.7s-.8-1.6-2.3-1.6h-2.1v3.3zm0 6.6h2.5c1.7 0 2.6-.6 2.6-1.8s-.9-1.7-2.6-1.7h-2.5v3.5z" fill="var(--bg)"/>
+        </svg>
+        <div>
+          <p class="kicker">Ledger</p>
+          <h1>Overview</h1>
+          <p class="sub">Clear numbers. No noise.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="pill" id="themeBtn">Light</button>
+        <button class="pill solid" id="pdfBtn">PDF</button>
+      </div>
+    </div>
+
+    <div class="notice" id="notice"></div>
+
+    <div id="home" class="panel"></div>
+    <div id="cash" class="panel" style="display:none"></div>
+    <div id="banks" class="panel" style="display:none"></div>
+    <div id="cards" class="panel" style="display:none"></div>
+    <div id="goals" class="panel" style="display:none"></div>
+    <div id="charts" class="panel" style="display:none"></div>
+
+    <div style="display:flex;gap:0.4rem;margin-top:1.5rem">
+      <button class="pill" id="backupBtn">Backup</button>
+      <button class="pill" id="importBtn">Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" />
+    </div>
+  </div>
+
+  <nav class="bottom">
+    <div class="bottom-inner">
+      <button data-tab="home" class="on">Home</button>
+      <button data-tab="cash">Cash</button>
+      <button data-tab="banks">Banks</button>
+      <button data-tab="charts">Charts</button>
+      <button data-tab="cards">Cards</button>
+      <button data-tab="goals">Goals</button>
+    </div>
+  </nav>
+
+  <div id="modal" class="modal" style="display:none">
+    <div class="modal-box">
+      <h2 id="modalTitle" style="font-size:1.15rem;font-weight:600;margin-bottom:0.8rem"></h2>
+      <div id="modalBody"></div>
+      <div style="display:flex;justify-content:flex-end;gap:0.4rem;margin-top:1rem">
+        <button class="pill" id="modalCancel">Cancel</button>
+        <button class="pill solid" id="modalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const { jsPDF } = window.jspdf;
+const KEY = "ledger_premium_v1";
+const THEME_KEY = "ledger_theme";
+let data = { income: [], expenses: [], budgets: {}, cards: [], accounts: [], goals: [] };
+let theme = "dark";
+let tab = "home";
+let cashView = "expenses";
+let charts = {};
+
+const CATS = ["Housing","Food","Transport","Utilities","Entertainment","Shopping","Health","Education","Travel","Subscriptions","Debt Payment","Other"];
+const KINDS = [{id:"chequing",label:"Chequing"},{id:"savings",label:"Savings"},{id:"investment",label:"Investment"}];
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function monthKey(d){ const x=new Date(d+"T12:00:00"); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; }
+function curMonth(){ const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; }
+function money(n){ return new Intl.NumberFormat("en-CA",{style:"currency",currency:"CAD"}).format(n||0); }
+function interest(bal,apr){ return (bal*(apr/100))/12; }
+function accrual(c){
+  const balance=+c.balance||0;
+  const apr=+c.apr||0;
+  const todayStr=today();
+  const asOf=(c.asOf&&/^\d{4}-\d{2}-\d{2}$/.test(c.asOf))?c.asOf:todayStr;
+  const start=new Date(asOf+"T12:00:00").getTime();
+  const end=new Date(todayStr+"T12:00:00").getTime();
+  const days=Math.max(0, Math.round((end-start)/86400000));
+  const daily=(balance*(apr/100))/365;
+  return {asOf, days, daily, accrued:daily*days, owed:balance+daily*days};
+}
+function upsert(hist,date,bal){ const h=hist.filter(p=>p.date!==date); h.push({date,bal}); h.sort((a,b)=>a.date.localeCompare(b.date)); return h; }
+
+function load(){
+  try{ const r=localStorage.getItem(KEY); if(r){ const v=JSON.parse(r); if(Array.isArray(v.income)) data={...data,...v,accounts:v.accounts||[],goals:v.goals||[]}; } }catch(e){}
+  const todayStr=today();
+  let stamped=false;
+  data.cards=data.cards.map(c=>{ if(c.asOf) return c; stamped=true; return {...c, asOf:todayStr}; });
+  if(stamped) localStorage.setItem(KEY, JSON.stringify(data));
+  const t=localStorage.getItem(THEME_KEY); if(t==="dark"||t==="light") theme=t;
+  applyTheme();
+}
+function applyTheme(){
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeBtn").textContent = theme === "dark" ? "Light" : "Dark";
+  localStorage.setItem(THEME_KEY, theme);
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(data)); render(); }
+function flash(msg){ const n=document.getElementById("notice"); n.textContent=msg; n.style.display="block"; setTimeout(()=>n.style.display="none",2200); }
+
+function stats(){
+  const m=curMonth();
+  const inc=data.income.filter(i=>monthKey(i.date)===m).reduce((s,i)=>s+ +i.amount,0);
+  const exp=data.expenses.filter(e=>monthKey(e.date)===m).reduce((s,e)=>s+ +e.amount,0);
+  const assets=data.accounts.reduce((s,a)=>s+ +a.balance,0);
+  const debt=data.cards.reduce((s,c)=>s+accrual(c).owed,0);
+  const accrued=data.cards.reduce((s,c)=>s+accrual(c).accrued,0);
+  const int=data.cards.reduce((s,c)=>s+interest(+c.balance,+c.apr),0);
+  const by={}; data.expenses.filter(e=>monthKey(e.date)===m).forEach(e=>by[e.category]=(by[e.category]||0)+ +e.amount);
+  return {inc,exp,assets,debt,int,accrued,by,left:inc-exp,net:assets-debt,leak:inc-exp-int};
+}
+
+function render(){
+  const s=stats();
+  document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+  document.getElementById(tab).style.display="block";
+  document.querySelectorAll(".bottom button").forEach(b=>b.classList.toggle("on", b.dataset.tab===tab));
+
+  if(tab==="home"){
+    const monthRows=[...data.income.map(i=>({...i,k:"in"})),...data.expenses.map(e=>({...e,k:"out"}))].filter(r=>monthKey(r.date)===curMonth()).sort((a,b)=>b.date.localeCompare(a.date));
+    const budgetCats=Object.keys(data.budgets||{});
+    document.getElementById("home").innerHTML=`
+      <div class="hero">
+        <div class="label">Net worth</div>
+        <div class="net ${s.net<0?"neg":""}">${money(s.net)}</div>
+        <p class="meta-line">${money(s.assets)} in banks · ${money(s.debt)} owed on cards</p>
+        <div class="grid2">
+          <div class="mini"><div class="l">Income</div><div class="v good">${money(s.inc)}</div></div>
+          <div class="mini"><div class="l">Spent</div><div class="v bad">${money(s.exp)}</div></div>
+          <div class="mini"><div class="l">Interest / month</div><div class="v ${s.int>0?"bad":""}">${money(s.int)}</div></div>
+          <div class="mini"><div class="l">${s.leak>=0?"Ahead this month":"Losing this month"}</div><div class="v ${s.leak>=0?"good":"bad"}">${money(s.leak)}</div></div>
+        </div>
+        <p class="meta-line" style="margin-top:0.7rem;font-size:0.72rem">${money(s.accrued)} already added since you logged the cards. The owed number grows by one day every calendar day.</p>
+      </div>
+      <div class="section"><h2>Income and spending</h2><p class="meta-line" style="margin-bottom:0.5rem">Last six months.</p><div class="card"><div class="chart-box"><canvas id="monthChartHome"></canvas></div></div></div>
+      <div class="section"><h2>Net worth</h2><div class="card"><div class="chart-box"><canvas id="homeNet"></canvas></div></div></div>
+      <div class="section">
+        <div class="section-head"><h2>Accounts</h2><button class="link" onclick="setTab('banks')">Edit</button></div>
+        <div class="card">${data.accounts.length? data.accounts.map(a=>`<div class="item"><div><div class="name">${a.name}</div><div class="meta">${KINDS.find(k=>k.id===a.kind)?.label||a.kind}</div></div><div>${money(a.balance)}</div></div>`).join("") : `<div class="empty">Add a chequing, savings, or investment account.</div>`}</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h2>Cards</h2><button class="link" onclick="setTab('cards')">Edit</button></div>
+        <div class="card">${data.cards.length? data.cards.map(c=>{ const a=accrual(c); return `<div class="item" style="align-items:flex-start"><div><div class="name">${c.name}</div><div class="meta">${c.last4?"•••• "+c.last4+" · ":""}${c.apr}% · statement ${money(c.balance)} · +${money(a.accrued)} over ${a.days} day${a.days===1?"":"s"}</div></div><div class="bad">${money(a.owed)}</div></div>`; }).join("") : `<div class="empty">Add a card to see interest building.</div>`}</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h2>Goals</h2><button class="link" onclick="setTab('goals')">Edit</button></div>
+        <div class="card">${data.goals.length? data.goals.map(g=>{ const pct=g.target>0?Math.min(100,(+g.saved/+g.target)*100):0; return `<div style="margin-bottom:0.85rem"><div style="display:flex;justify-content:space-between;font-size:0.85rem"><span class="name">${g.name}</span><span class="meta">${money(g.saved)} / ${money(g.target)}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div>`; }).join("") : `<div class="empty">No goals yet.</div>`}</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h2>Budgets</h2><button class="link" onclick="setCash('budgets');setTab('cash')">Edit</button></div>
+        <div class="card">${budgetCats.length? budgetCats.map(c=>{ const lim=+data.budgets[c]||0; const spent=s.by[c]||0; const pct=lim>0?Math.min(100,(spent/lim)*100):0; return `<div style="margin-bottom:0.85rem"><div style="display:flex;justify-content:space-between;font-size:0.85rem"><span>${c}</span><span class="meta">${money(spent)} / ${money(lim)}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div>`; }).join("") : `<div class="empty">No budgets yet.</div>`}</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h2>This month</h2><button class="link" onclick="setTab('cash')">All cash</button></div>
+        <div class="card">${monthRows.length? monthRows.map(r=>`<div class="item"><div><div class="name">${r.description|| (r.k==="in"?"Income":r.category||"Expense")}</div><div class="meta">${r.date}${r.k==="out"&&r.category?" · "+r.category:""}</div></div><div class="${r.k==="in"?"good":"bad"}">${r.k==="in"?"+":"−"}${money(r.amount)}</div></div>`).join("") : `<div class="empty">Nothing this month yet.</div>`}</div>
+      </div>`;
+    drawMonth("monthChartHome");
+    drawNet("homeNet");
+  }
+
+  if(tab==="cash"){
+    document.getElementById("cash").innerHTML=`
+      <div class="tabs">
+        <button class="tab ${cashView==="expenses"?"on":""}" onclick="setCash('expenses')">Spent</button>
+        <button class="tab ${cashView==="income"?"on":""}" onclick="setCash('income')">Income</button>
+        <button class="tab ${cashView==="budgets"?"on":""}" onclick="setCash('budgets')">Budgets</button>
+      </div>
+      <div id="cashBody"></div>`;
+    renderCash();
+  }
+
+  if(tab==="banks"){
+    document.getElementById("banks").innerHTML=`
+      <div class="section">
+        <div class="section-head"><h2>Accounts</h2><button class="pill solid" onclick="openAccount()">Add</button></div>
+        <p class="meta-line" style="margin-bottom:0.75rem">Chequing, savings, investments. Log the balance when it changes.</p>
+        ${data.accounts.length? data.accounts.map(a=>`
+          <div class="card" style="margin-bottom:0.55rem">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><div class="meta">${KINDS.find(k=>k.id===a.kind)?.label||a.kind}</div><div class="name">${a.name}</div></div>
+              <div style="font-size:1.25rem;font-weight:600">${money(a.balance)}</div>
+            </div>
+            <div style="margin-top:0.65rem;display:flex;gap:0.7rem">
+              <button class="link" onclick="openLog('${a.id}')">Log</button>
+              <button class="link" onclick="openAccount('${a.id}')">Edit</button>
+              <button class="link danger" onclick="delAccount('${a.id}')">Delete</button>
+            </div>
+          </div>`).join("") : `<div class="card"><div class="empty">No accounts yet.</div></div>`}
+      </div>`;
+  }
+
+  if(tab==="cards"){
+    document.getElementById("cards").innerHTML=`
+      <div class="section">
+        <div class="section-head"><h2>Cards</h2><button class="pill solid" onclick="openCard()">Add</button></div>
+        ${data.cards.length? data.cards.map(c=>{
+          const a=accrual(c);
+          return `<div class="card" style="margin-bottom:0.55rem">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><div class="name">${c.name}</div><div class="meta">${c.last4?"•••• "+c.last4+" · ":""}${c.apr}% APR</div></div>
+              <div style="text-align:right"><div class="bad" style="font-size:1.25rem;font-weight:600">${money(a.owed)}</div><div class="meta">owed now</div></div>
+            </div>
+            <p class="meta" style="margin-top:0.45rem">Statement ${money(c.balance)} on ${a.asOf}. Added ${money(a.accrued)} over ${a.days} day${a.days===1?"":"s"} at ${money(a.daily)} a day. Update the balance when your statement changes.</p>
+            <div style="margin-top:0.5rem"><button class="link" onclick="openCard('${c.id}')">Edit</button> <button class="link danger" onclick="delCard('${c.id}')">Delete</button></div>
+          </div>`;
+        }).join("") : `<div class="card"><div class="empty">No cards yet.</div></div>`}
+      </div>`;
+  }
+
+  if(tab==="goals"){
+    document.getElementById("goals").innerHTML=`
+      <div class="section">
+        <div class="section-head"><h2>Goals</h2><button class="pill solid" onclick="openGoal()">Add</button></div>
+        ${data.goals.length? data.goals.map(g=>{
+          const pct=g.target>0?Math.min(100,(+g.saved/+g.target)*100):0;
+          return `<div class="card" style="margin-bottom:0.55rem">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem"><span class="name">${g.name}</span><span class="meta">${money(g.saved)} / ${money(g.target)}</span></div>
+            <div class="progress"><div style="width:${pct}%"></div></div>
+            ${g.note?`<div class="meta" style="margin-top:0.25rem">${g.note}</div>`:""}
+            <div style="margin-top:0.45rem"><button class="link" onclick="openGoal('${g.id}')">Edit</button> <button class="link danger" onclick="delGoal('${g.id}')">Delete</button></div>
+          </div>`;
+        }).join("") : `<div class="card"><div class="empty">No goals yet.</div></div>`}
+      </div>`;
+  }
+
+  if(tab==="charts"){
+    document.getElementById("charts").innerHTML=`
+      <div class="section"><h2>Six months</h2><div class="card"><div class="chart-box"><canvas id="monthChart"></canvas></div></div></div>
+      <div class="section"><h2>Spending</h2><div class="card"><div class="chart-box"><canvas id="catChart"></canvas></div></div></div>
+      <div class="section"><h2>Net worth</h2><div class="card"><div class="chart-box"><canvas id="netChart"></canvas></div></div></div>`;
+    drawMonth(); drawCat(); drawNet("netChart");
+  }
+}
+
+function renderCash(){
+  const body=document.getElementById("cashBody");
+  if(!body) return;
+  if(cashView==="income"){
+    const rows=[...data.income].sort((a,b)=>b.date.localeCompare(a.date));
+    body.innerHTML=`<div class="section"><div class="section-head"><h2>Income</h2><button class="pill solid" onclick="openIncome()">Add</button></div>
+      <div class="card">${rows.length?rows.map(i=>`<div class="item"><div><div class="name">${i.description||"Income"}</div><div class="meta">${i.date}</div></div><div class="good">${money(i.amount)} <button class="link" onclick="openIncome('${i.id}')">Edit</button> <button class="link danger" onclick="delIncome('${i.id}')">Del</button></div></div>`).join("") : `<div class="empty">None yet.</div>`}</div></div>`;
+  }
+  if(cashView==="expenses"){
+    const rows=[...data.expenses].sort((a,b)=>b.date.localeCompare(a.date));
+    body.innerHTML=`<div class="section"><h2>Spending</h2><div class="card"><div class="chart-box"><canvas id="expChart"></canvas></div></div></div>
+      <div class="section"><div class="section-head"><h2>Expenses</h2><button class="pill solid" onclick="openExpense()">Add</button></div>
+      <div class="card">${rows.length?rows.map(e=>`<div class="item"><div><div class="name">${e.description||e.category}</div><div class="meta">${e.date} · ${e.category}</div></div><div class="bad">${money(e.amount)} <button class="link" onclick="openExpense('${e.id}')">Edit</button> <button class="link danger" onclick="delExpense('${e.id}')">Del</button></div></div>`).join("") : `<div class="empty">None yet.</div>`}</div></div>`;
+    drawCat("expChart");
+  }
+  if(cashView==="budgets"){
+    const cats=Object.keys(data.budgets);
+    const s=stats();
+    body.innerHTML=`<div class="section"><div class="section-head"><h2>Budgets</h2><button class="pill solid" onclick="openBudget()">Set</button></div>
+      <div class="card">${cats.length?cats.map(c=>{
+        const lim=+data.budgets[c]||0; const spent=s.by[c]||0; const pct=lim>0?Math.min(100,(spent/lim)*100):0;
+        return `<div style="margin-bottom:0.9rem"><div style="display:flex;justify-content:space-between;font-size:0.8rem"><span>${c}</span><span class="meta">${money(spent)} / ${money(lim)}</span></div><div class="progress"><div style="width:${pct}%"></div></div>
+          <div style="margin-top:0.25rem"><button class="link" onclick="openBudget('${c}')">Edit</button> <button class="link danger" onclick="delBudget('${c}')">Remove</button></div></div>`;
+      }).join("") : `<div class="empty">None set.</div>`}</div></div>`;
+  }
+}
+
+function setTab(t){ tab=t; render(); }
+function setCash(v){ cashView=v; render(); }
+
+function openModal(title, html, onSave){
+  document.getElementById("modalTitle").textContent=title;
+  document.getElementById("modalBody").innerHTML=html;
+  document.getElementById("modal").style.display="flex";
+  document.getElementById("modalSave").onclick=()=>{ onSave(); document.getElementById("modal").style.display="none"; };
+}
+document.getElementById("modalCancel").onclick=()=>document.getElementById("modal").style.display="none";
+
+function openIncome(id){
+  const item=id?data.income.find(i=>i.id===id):{id:uid(),date:today(),amount:"",description:""};
+  openModal(id?"Edit income":"Add income", `
+    <label>Date</label><input type="date" id="fDate" value="${item.date}" />
+    <label>Amount</label><input type="number" id="fAmt" step="0.01" value="${item.amount||""}" />
+    <label>Description</label><input id="fDesc" value="${item.description||""}" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const date=document.getElementById("fDate").value;
+    const description=document.getElementById("fDesc").value.trim();
+    if(!date||!isFinite(amount)||amount<0) return flash("Enter a valid date and amount.");
+    const rec={...item,date,amount,description};
+    if(id) data.income=data.income.map(i=>i.id===id?rec:i); else data.income.unshift(rec);
+    save();
+  });
+}
+function delIncome(id){ if(confirm("Delete?")){ data.income=data.income.filter(i=>i.id!==id); save(); } }
+function openExpense(id){
+  const item=id?data.expenses.find(e=>e.id===id):{id:uid(),date:today(),amount:"",category:"Food",description:""};
+  openModal(id?"Edit expense":"Add expense", `
+    <label>Date</label><input type="date" id="fDate" value="${item.date}" />
+    <label>Amount</label><input type="number" id="fAmt" step="0.01" value="${item.amount||""}" />
+    <label>Category</label><select id="fCat">${CATS.map(c=>`<option ${c===item.category?"selected":""}>${c}</option>`).join("")}</select>
+    <label>Description</label><input id="fDesc" value="${item.description||""}" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const date=document.getElementById("fDate").value;
+    const category=document.getElementById("fCat").value;
+    const description=document.getElementById("fDesc").value.trim();
+    if(!date||!isFinite(amount)||amount<0) return flash("Enter a valid date and amount.");
+    const rec={...item,date,amount,category,description};
+    if(id) data.expenses=data.expenses.map(e=>e.id===id?rec:e); else data.expenses.unshift(rec);
+    save();
+  });
+}
+function delExpense(id){ if(confirm("Delete?")){ data.expenses=data.expenses.filter(e=>e.id!==id); save(); } }
+function openBudget(cat){
+  openModal("Set budget", `
+    <label>Category</label><select id="fCat">${CATS.map(c=>`<option ${c===cat?"selected":""}>${c}</option>`).join("")}</select>
+    <label>Monthly limit</label><input type="number" id="fAmt" step="0.01" value="${cat?data.budgets[cat]||"":""}" />
+  `, ()=>{
+    const amount=+document.getElementById("fAmt").value;
+    const c=document.getElementById("fCat").value;
+    if(!isFinite(amount)||amount<0) return flash("Enter a valid amount.");
+    data.budgets[c]=amount; save();
+  });
+}
+function delBudget(c){ if(confirm("Remove?")){ delete data.budgets[c]; save(); } }
+function openCard(id){
+  const item=id?data.cards.find(c=>c.id===id):{id:uid(),name:"",last4:"",balance:"",apr:19.99};
+  openModal(id?"Edit card":"Add card", `
+    <label>Name</label><input id="fName" value="${item.name||""}" />
+    <label>Last 4</label><input id="fLast" maxlength="4" value="${item.last4||""}" />
+    <label>Balance</label><input type="number" id="fBal" step="0.01" value="${item.balance||""}" />
+    <label>APR %</label><input type="number" id="fApr" step="0.01" value="${item.apr||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const balance=+document.getElementById("fBal").value;
+    const apr=+document.getElementById("fApr").value;
+    const last4=document.getElementById("fLast").value.replace(/\D/g,"").slice(0,4);
+    if(!name||!isFinite(balance)||balance<0||!isFinite(apr)||apr<0) return flash("Name, balance, and APR required.");
+    const rec={...item,name,balance,apr,last4,asOf:today()};
+    if(id) data.cards=data.cards.map(c=>c.id===id?rec:c); else data.cards.push(rec);
+    save();
+  });
+}
+function delCard(id){ if(confirm("Delete?")){ data.cards=data.cards.filter(c=>c.id!==id); save(); } }
+function openAccount(id){
+  const item=id?data.accounts.find(a=>a.id===id):{id:uid(),name:"",kind:"chequing",balance:"",history:[]};
+  openModal(id?"Edit account":"Add account", `
+    <label>Name</label><input id="fName" value="${item.name||""}" />
+    <label>Type</label><select id="fKind">${KINDS.map(k=>`<option value="${k.id}" ${k.id===item.kind?"selected":""}>${k.label}</option>`).join("")}</select>
+    <label>Balance</label><input type="number" id="fBal" step="0.01" value="${item.balance||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const balance=+document.getElementById("fBal").value;
+    const kind=document.getElementById("fKind").value;
+    if(!name||!isFinite(balance)) return flash("Name and balance required.");
+    const history=upsert(item.history||[], today(), balance);
+    const rec={...item,name,balance,kind,history};
+    if(id) data.accounts=data.accounts.map(a=>a.id===id?rec:a); else data.accounts.push(rec);
+    save();
+  });
+}
+function openLog(id){
+  const a=data.accounts.find(x=>x.id===id);
+  openModal("Log balance", `
+    <label>Date</label><input type="date" id="fDate" value="${today()}" />
+    <label>Balance</label><input type="number" id="fBal" step="0.01" value="${a.balance}" />
+  `, ()=>{
+    const date=document.getElementById("fDate").value;
+    const balance=+document.getElementById("fBal").value;
+    if(!date||!isFinite(balance)) return flash("Enter date and balance.");
+    data.accounts=data.accounts.map(x=>x.id===id?{...x,balance,history:upsert(x.history,date,balance)}:x);
+    save();
+  });
+}
+function delAccount(id){ if(confirm("Delete?")){ data.accounts=data.accounts.filter(a=>a.id!==id); save(); } }
+function openGoal(id){
+  const item=id?data.goals.find(g=>g.id===id):{id:uid(),name:"",target:"",saved:"",note:""};
+  openModal(id?"Edit goal":"Add goal", `
+    <label>Name</label><input id="fName" value="${item.name||""}" />
+    <label>Target</label><input type="number" id="fTgt" step="0.01" value="${item.target||""}" />
+    <label>Saved so far</label><input type="number" id="fSav" step="0.01" value="${item.saved||""}" />
+    <label>Note</label><input id="fNote" value="${item.note||""}" />
+  `, ()=>{
+    const name=document.getElementById("fName").value.trim();
+    const target=+document.getElementById("fTgt").value;
+    const saved=+document.getElementById("fSav").value;
+    const note=document.getElementById("fNote").value.trim();
+    if(!name||!isFinite(target)||target<=0||!isFinite(saved)||saved<0) return flash("Name, target, and saved required.");
+    const rec={...item,name,target,saved,note};
+    if(id) data.goals=data.goals.map(g=>g.id===id?rec:g); else data.goals.push(rec);
+    save();
+  });
+}
+function delGoal(id){ if(confirm("Delete?")){ data.goals=data.goals.filter(g=>g.id!==id); save(); } }
+
+function netSeries(){
+  const dates=new Set();
+  data.accounts.forEach(a=>a.history.forEach(p=>dates.add(p.date)));
+  const debt=data.cards.reduce((s,c)=>s+accrual(c).owed,0);
+  return [...dates].sort().map(d=>{
+    let assets=0;
+    data.accounts.forEach(a=>{
+      const prior=[...a.history].filter(p=>p.date<=d).at(-1);
+      if(prior) assets+= +prior.bal;
+    });
+    return {date:d.slice(5), net:Math.round(assets-debt)};
+  });
+}
+function drawNet(id){
+  const ctx=document.getElementById(id); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const series=netSeries();
+  if(series.length<2){ ctx.parentElement.innerHTML=`<div class="empty">Log balances on two days.</div>`; return; }
+  const accent = theme==="dark" ? "#f4f4f5" : "#18181b";
+  charts[id]=new Chart(ctx,{type:"line",data:{labels:series.map(s=>s.date),datasets:[{data:series.map(s=>s.net),borderColor:accent,backgroundColor:"transparent",tension:0.35,pointRadius:0,borderWidth:1.8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:"#888",font:{size:10}}},y:{grid:{color:theme==="dark"?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"},ticks:{color:"#888",font:{size:10}}}}}});
+}
+function drawMonth(id){
+  id = id || "monthChart";
+  const ctx=document.getElementById(id); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const now=new Date(); const rows=[];
+  for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    rows.push({name:d.toLocaleString("en-CA",{month:"short"}), Income:data.income.filter(x=>monthKey(x.date)===k).reduce((s,x)=>s+ +x.amount,0), Spent:data.expenses.filter(x=>monthKey(x.date)===k).reduce((s,x)=>s+ +x.amount,0)}); }
+  const good = theme==="dark" ? "#8dccaa" : "#1d6b45";
+  const bad = theme==="dark" ? "#e7a39b" : "#a33d34";
+  const grid = theme==="dark" ? "#34352e" : "#ddd9d1";
+  charts[id]=new Chart(ctx,{type:"bar",data:{labels:rows.map(r=>r.name),datasets:[{label:"Income",data:rows.map(r=>r.Income),backgroundColor:good,borderRadius:4},{label:"Spent",data:rows.map(r=>r.Spent),backgroundColor:bad,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#888",font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{color:"#888",font:{size:10}}},y:{grid:{color:grid},ticks:{color:"#888",font:{size:10}}}}}});
+}
+function drawCat(id="catChart"){
+  const ctx=document.getElementById(id); if(!ctx) return;
+  if(charts[id]) charts[id].destroy();
+  const s=stats(); const labels=Object.keys(s.by); const vals=Object.values(s.by);
+  if(!labels.length){ ctx.parentElement.innerHTML=`<div class="empty">No spending this month.</div>`; return; }
+  charts[id]=new Chart(ctx,{type:"bar",data:{labels,datasets:[{data:vals,backgroundColor:"#f87171",borderRadius:4}]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:theme==="dark"?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.06)"},ticks:{color:"#888",font:{size:10}}},y:{grid:{display:false},ticks:{color:"#888",font:{size:10}}}}}});
+}
+
+document.getElementById("themeBtn").onclick=()=>{
+  theme = theme === "dark" ? "light" : "dark";
+  applyTheme();
+  render();
+};
+document.getElementById("backupBtn").onclick=()=>{
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`ledger-backup-${today()}.json`; a.click();
+};
+document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
+document.getElementById("importFile").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ try{ const v=JSON.parse(r.result); if(!Array.isArray(v.income)) throw 0; if(!confirm("Replace everything?")) return; data={...data,...v,accounts:v.accounts||[],goals:v.goals||[]}; save(); flash("Imported."); }catch{ flash("Invalid file."); } }; r.readAsText(f); e.target.value="";
+};
+document.getElementById("pdfBtn").onclick=()=>{
+  const s=stats();
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  let y = 18;
+  const line = (text, size = 11, bold = false) => {
+    if (y > 275) { doc.addPage(); y = 18; }
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(size);
+    doc.setTextColor(24, 24, 27);
+    const lines = doc.splitTextToSize(text, 180);
+    doc.text(lines, 15, y);
+    y += lines.length * (size * 0.45) + 2.5;
+  };
+  line("Ledger", 20, true);
+  line(`${curMonth()} · ${today()}`, 10);
+  y += 2;
+  line(`Net worth  ${money(s.net)}`, 12, true);
+  line(`Assets ${money(s.assets)}   Debt ${money(s.debt)}`);
+  line(`Left this month  ${money(s.left)}`);
+  line(`After interest  ${money(s.leak)}`);
+  line(`Estimated interest  ${money(s.int)} / month`);
+  y += 3;
+  line("Accounts", 13, true);
+  if (!data.accounts.length) line("None.");
+  data.accounts.forEach(a => line(`${a.name} (${a.kind})   ${money(a.balance)}`));
+  y += 2;
+  line("Goals", 13, true);
+  if (!data.goals.length) line("None.");
+  data.goals.forEach(g => line(`${g.name}   ${money(g.saved)} of ${money(g.target)}`));
+  y += 2;
+  line("Income this month", 13, true);
+  const inc = data.income.filter(i => monthKey(i.date) === curMonth());
+  if (!inc.length) line("None.");
+  inc.forEach(i => line(`${i.date}   ${i.description || "Income"}   ${money(i.amount)}`));
+  y += 2;
+  line("Expenses this month", 13, true);
+  const exp = data.expenses.filter(e => monthKey(e.date) === curMonth());
+  if (!exp.length) line("None.");
+  exp.forEach(e => line(`${e.date}   ${e.category}   ${e.description || ""}   ${money(e.amount)}`));
+  y += 2;
+  line("Credit cards", 13, true);
+  if (!data.cards.length) line("None.");
+  data.cards.forEach(c => {
+    const a = accrual(c);
+    line(`${c.name}   statement ${money(c.balance)}   owed now ${money(a.owed)}   ${c.apr}% APR   +${money(a.accrued)} over ${a.days} days`);
+  });
+  y += 4;
+  line("Interest is simple daily: balance x APR / 365, added each day since you logged the balance.", 9);
+  doc.save(`ledger-${today()}.pdf`);
+  flash("PDF downloaded.");
+};
+
+document.querySelectorAll(".bottom button").forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+load(); render();
+</script>
+</body>
+</html>
